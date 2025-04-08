@@ -20,12 +20,12 @@ fi
 
 # Optimized FFmpeg Command for Vertical Stream
 while true; do
-  echo "[$(date)] Starting 9:16 stream (1080x720 optimized)..." >> /app/stream.log
+  echo "[$(date)] Starting 16:9 stream (1280x720 optimized)..." >> /app/stream.log
   
   ffmpeg -loglevel warning -re -stream_loop -1 -i "/app/video.mp4" \
     -c:v libx264 -preset ultrafast -tune zerolatency \
     -b:v 2000k -maxrate 2200k -bufsize 4000k \
-    -vf "scale=1080:720:force_original_aspect_ratio=decrease,pad=1080:720:(ow-iw)/2:(oh-ih)/2:black" \
+    -vf "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black" \
     -g 60 -threads 1 \
     -c:a aac -b:a 96k -ar 44100 \
     -f flv "rtmp://a.rtmp.youtube.com/live2/3gzc-uts3-xp4q-zd0a-brkb" 2>> /app/ffmpeg.log
