@@ -1,34 +1,40 @@
 #!/bin/bash
 
-# Memory Management (Critical for Railway Free Tier)
-ulimit -v 450000  # Limit to 450MB memory
-echo 1 > /proc/sys/vm/overcommit_memory  # Prevent OOM kills
-
-# Create app directory
+# Create app directory if not exists
 mkdir -p /app
 
-# Download video with retries (optimized)
+# Download video only if not already present (with retries)
 if [ ! -f "/app/video.mp4" ]; then
-  for i in {1..3}; do
-    wget -q --show-progress https://github.com/hemantyadav2/Live/releases/download/v1.0/live.mp4 -O /app/video.mp4 && break
-    sleep 10
+  echo "[$(date)] Downloading video..." >> /app/stream.log
+  for i in {1..5}; do
+    wget https://github.com/hemantkyadav2/Live/releases/download/v1.0/live.mp4 -O /app/video.mp4
+    if [ $? -eq 0 ]; then
+      echo "[$(date)] Download successful" >> /app/stream.log
+      break
+    else
+      echo "[$(date)] Download attempt $i failed" >> /app/stream.log
+      sleep 10
+    fi
   done
 fi
 
-# Verify video
-[ ! -f "/app/video.mp4" ] && echo "[$(date)] ERROR: Video missing!" >> /app/stream.log && exit 1
+# Verify video exists before streaming
+if [ ! -f "/app/video.mp4" ]; then
+  echo "[$(date)] ERROR: Video file missing!" >> /app/stream.log
+  exit 1
+fi
 
-# Optimized FFmpeg Command for Vertical Stream
+# Infinite streaming loop
 while true; do
-  echo "[$(date)] Starting 16:9 stream (1280x720 optimized)..." >> /app/stream.log
+  echo "[$(date)] Starting stream..." >> /app/stream.log
   
-  ffmpeg -loglevel warning -re -stream_loop -1 -i "/app/video.mp4" \
-    -c:v libx264 -preset ultrafast -tune zerolatency \
-    -b:v 2000k -maxrate 2200k -bufsize 4000k \
-    -vf "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black" \
-    -g 60 -threads 1 \
-    -c:a aac -b:a 96k -ar 44100 \
-    -f flv "rtmp://a.rtmp.youtube.com/live2/3gzc-uts3-xp4q-zd0a-brkb" 2>> /app/ffmpeg.log
+  ffmpeg -re -stream_loop -1 -i "/app/video.mp4" \
+    -c:v libx264 -preset veryfast -b:v 2500k -maxrate 2500k -bufsize 5000k \
+    -vf "scale=1280:720,fps=30" -g 60 -keyint_min 30 \
+    -c:a aac -b:a 128k -ar 44100 \
+    -f flv "rtmp://a.rtmp.youtube.com/live2/a3ck-2h5x-51j1-samt-5wxe" 2>> /app/ffmpeg.log
   
+  # If stream crashes
+  echo "[$(date)] Stream crashed! Restarting in 5 seconds..." >> /app/stream.log
   sleep 5
 done
